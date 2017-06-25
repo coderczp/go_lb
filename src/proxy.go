@@ -77,6 +77,15 @@ func doForward(srcConn net.Conn,destConn net.Conn,quit chan bool){
       quit <- true; 
 }
 
+/**转发io*/
+func doForward(srcConn net.Conn,destConn net.Conn,quit chan bool){
+      _,err := io.Copy(srcConn,destConn);
+      if err !=nil {
+        fmt.Printf("forward:%s<->%s err:%s",srcConn.RemoteAddr(),destConn.RemoteAddr,err);
+      }
+      quit <- true; 
+}
+
 /*执行负载均衡*/
 func loadBalance(sers []string) string {
 	size := len(sers)
