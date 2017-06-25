@@ -50,7 +50,7 @@ func doServer(localAddr string, backendSer []string) {
 			fmt.Println("accept err:%v\n", err)
 			continue
 		}
-		fmt.Printf("forward :%s<->%s\n",conn.RemoteAddr(), conn.LocalAddr())
+		fmt.Printf("client: %s connected\n",conn.RemoteAddr())
 		go doProxy(conn, backendSer)
 	}
 }
@@ -64,19 +64,20 @@ func doProxy(sconn net.Conn, backendSer []string) {
 		fmt.Printf("dial%v err:%v\n", ip, err)
 		return
 	}
-	ExitChan := make(chan bool, 1)
-	go func(sconn net.Conn, dconn net.Conn, Exit chan bool) {
-		_, err := io.Copy(dconn, sconn)
-		fmt.Printf("write %v data fail:%v\n", ip, err)
-		ExitChan <- true
-	}(sconn, dconn, ExitChan)
-	go func(sconn net.Conn, dconn net.Conn, Exit chan bool) {
-		_, err := io.Copy(sconn, dconn)
-		fmt.Printf("recv %v data fail:%v\n", ip, err)
-		ExitChan <- true
-	}(sconn, dconn, ExitChan)
-	<-ExitChan
+	quitChan := make(chan bool, 1)
+	go doForward(sconn, dconn, quitChan) 
+	go doForward(dconn, sconn, quitChan) 
+	<-quitChan
 	dconn.Close()
+}
+
+/**转发io*/
+func doForward(srcConn net.Conn,destConn net.Conn,quit chan bool){
+      _,err := io.Copy(srcConn,destConn);
+      if err !=nil {
+        fmt.Printf("forward:%s<->%s err:%s",srcConn.RemoteAddr(),destConn.RemoteAddr,err);
+      }
+      quit <- true; 
 }
 
 /*执行负载均衡*/
